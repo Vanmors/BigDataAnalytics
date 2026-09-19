@@ -1,0 +1,8 @@
+logs/
+plugins/
+__pycache__/
+*.pyc
+combined.log
+error.log
+.env
+.idea/
