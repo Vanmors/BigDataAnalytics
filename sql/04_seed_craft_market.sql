@@ -12,7 +12,3 @@ COPY source3.craft_market_orders (order_id, product_id, craftsman_id, customer_i
                                   order_completion_date, order_status, product_name, product_description,
                                   product_type, product_price)
     FROM '/data/craft_market/craft_market_orders.csv' WITH (FORMAT csv, HEADER true);
-
-ANALYZE source3.craft_market_craftsmans;
-ANALYZE source3.craft_market_customers;
-ANALYZE source3.craft_market_orders;

@@ -23,7 +23,7 @@ SELECT
     to_char(o.order_created_date, 'YYYY-MM')     AS report_period
 FROM source3.craft_market_orders o
 JOIN source3.craft_market_customers c USING (customer_id)
--- отчётный месяц: параметры подставляет DAG (или psql -v report_year=2024 -v report_month=3)
+-- отчётный месяц: параметры подставляет DAG
 WHERE o.order_created_date >= make_date(:report_year, :report_month, 1)
   AND o.order_created_date <  make_date(:report_year, :report_month, 1) + interval '1 month'
 GROUP BY c.customer_id, c.customer_name, c.customer_address,

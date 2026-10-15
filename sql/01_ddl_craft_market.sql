@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS source1.craft_market_wide (
 -- source2: мастера+товары и заказы+заказчики
 CREATE SCHEMA IF NOT EXISTS source2;
 
--- Таблица мастеров и товаров. PK - craftsman_id, как на диаграмме.
+-- Таблица мастеров и товаров.
 CREATE TABLE IF NOT EXISTS source2.craft_market_masters_products (
     craftsman_id          bigint PRIMARY KEY,
     craftsman_name        varchar(255) NOT NULL,
