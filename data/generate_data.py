@@ -1,25 +1,32 @@
 #!/usr/bin/env python3
-"""Generate test data for task 1. Standard library only - no pip install needed.
+"""Generate deterministic teaching data for tasks 1 and 2. Standard library only - no pip install needed.
 
     python3 data/generate_data.py
 
 Writes data/craft_market/*.csv - the three source3.craft_market_* tables (loaded by `make seed`).
+Also writes data/external_source/*.csv for the manual task2 DAG.
 The generator is deterministic (fixed random seed), so re-running it does not change the data.
 """
 
 import csv
 import random
-from datetime import date, timedelta
+import uuid
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 SEED = 20240913
 ROOT = Path(__file__).resolve().parent
 CRAFT_MARKET_DIR = ROOT / "craft_market"
+EXTERNAL_SOURCE_DIR = ROOT / "external_source"
 
 N_CRAFTSMANS = 30
 N_PRODUCTS = 120
 N_CUSTOMERS = 200
 N_ORDERS = 4000
+N_ORDER_LOG = 10
+N_ACTIVITY_LOG = 10
+N_RESEARCH = 10
+N_ACTIONS = 8
 
 PERIOD_START = date(2024, 1, 1)
 PERIOD_END = date(2024, 6, 30)
@@ -49,6 +56,16 @@ def write_csv(path: Path, header: list[str], rows: list[tuple]) -> None:
 
 def random_date(rnd: random.Random, start: date, end: date) -> date:
     return start + timedelta(days=rnd.randint(0, (end - start).days))
+
+
+def random_datetime(rnd: random.Random, start: date, end: date) -> str:
+    day = random_date(rnd, start, end)
+    moment = datetime(day.year, day.month, day.day) + timedelta(seconds=rnd.randint(0, 86399))
+    return moment.isoformat(sep=" ")
+
+
+def random_uuid(rnd: random.Random) -> str:
+    return str(uuid.UUID(int=rnd.getrandbits(128), version=4))
 
 
 def full_name(rnd: random.Random) -> str:
@@ -127,7 +144,86 @@ def main() -> None:
         orders,
     )
 
+    generate_external_source(customers, products, prices)
+
     print("\nDone. Next: `make up`, then `make seed`, then run the DAG in the Airflow UI.")
+
+
+def generate_external_source(
+    customers: list[tuple],
+    products: dict[int, tuple],
+    prices: dict[tuple[int, int], int],
+) -> None:
+    # Task 2: raw files for the external_source schema.
+
+    rnd = random.Random(SEED + 2)
+    city_ids = {city: i for i, city in enumerate(CITIES, start=1)}
+    item_prices: dict[int, int] = {}
+    for (_, product_id), price in prices.items():
+        item_prices[product_id] = min(price, item_prices.get(product_id, price))
+    items = sorted(item_prices)
+
+    order_log = []
+    for row_id in range(1, N_ORDER_LOG + 1):
+        customer_id, name, customer_address, *_ = rnd.choice(customers)
+        last_name, first_name, _ = name.split()
+        city_name = customer_address.split(",")[0]
+        item_id = rnd.choice(items)
+        quantity = rnd.randint(1, 5)
+        order_log.append((
+            row_id,
+            random_uuid(rnd),
+            random_datetime(rnd, PERIOD_START, PERIOD_END),
+            city_ids[city_name],
+            city_name,
+            customer_id,
+            first_name,
+            last_name,
+            item_id,
+            products[item_id][0],
+            quantity,
+            quantity * item_prices[item_id],
+        ))
+    order_log.sort(key=lambda r: r[2])
+    write_csv(
+        EXTERNAL_SOURCE_DIR / "user_order_log.csv",
+        ["id", "uniq_id", "date_time", "city_id", "city_name", "customer_id", "first_name",
+         "last_name", "item_id", "item_name", "quantity", "payment_amount"],
+        [(i, *r[1:]) for i, r in enumerate(order_log, start=1)],
+    )
+
+    activity_log = []
+    for _ in range(N_ACTIVITY_LOG):
+        activity_log.append((
+            random_uuid(rnd),
+            random_datetime(rnd, PERIOD_START, PERIOD_END),
+            rnd.randint(1, N_ACTIONS),
+            rnd.randint(1, len(customers)),
+            rnd.randint(1, 10),
+        ))
+    activity_log.sort(key=lambda r: r[1])
+    write_csv(
+        EXTERNAL_SOURCE_DIR / "user_activity_log.csv",
+        ["id", "uniq_id", "date_time", "action_id", "customer_id", "quantity"],
+        [(i, *r) for i, r in enumerate(activity_log, start=1)],
+    )
+
+    research = []
+    for _ in range(N_RESEARCH):
+        sales_qty = rnd.randint(0, 40)
+        research.append((
+            random_date(rnd, PERIOD_START, PERIOD_END).isoformat(),
+            rnd.randint(1, len(PRODUCT_TYPES)),
+            rnd.randint(1, len(CITIES)),
+            sales_qty,
+            sales_qty * rnd.randint(500, 25000),
+        ))
+    research.sort()
+    write_csv(
+        EXTERNAL_SOURCE_DIR / "customer_research.csv",
+        ["date_id", "category_id", "geo_id", "sales_qty", "sales_amt"],
+        research,
+    )
 
 
 if __name__ == "__main__":

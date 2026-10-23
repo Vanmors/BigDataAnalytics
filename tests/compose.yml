@@ -1,0 +1,40 @@
+services:
+  mongo:
+    image: mongo:8.0.34@sha256:4a4ab5d4834207389e0d7270fac988e21ffedccecba77991a552f755df229907
+    command: [mongod, --replSet, task3, --bind_ip_all, --oplogSize, '128', --setParameter, 'minSnapshotHistoryWindowInSeconds=1']
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - mongo-test:/data/db
+  pg:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: task3
+      POSTGRES_PASSWORD: isolated-teaching-test
+      POSTGRES_DB: task3
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, task3, -d, task3]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - pg-test:/var/lib/postgresql/data
+  runner:
+    build: ..
+    image: bigdataanalytics-airflow:task3
+    entrypoint: [python]
+    environment:
+      PYTHONPATH: /repo/plugins
+      TASK3_MONGO_URI: mongodb://mongo:27017/?replicaSet=task3
+      TASK3_PG_DSN: postgresql://task3:isolated-teaching-test@pg:5432/task3
+    volumes:
+      - ..:/repo:ro
+      - ../sql:/opt/airflow/sql:ro
+      - ../data:/opt/airflow/data:ro
+    working_dir: /repo
+volumes:
+  mongo-test:
+  pg-test:

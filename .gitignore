@@ -3,13 +3,16 @@
 
 # Airflow runtime folders (created by `make up`)
 logs/
-plugins/
+plugins/*
+!plugins/task3_mongo_cdc.py
 
 # Generated test data: run `make gen`
 data/craft_market/
+data/external_source/
 
-# Task statements are kept locally only
+# Task documents are ignored except for the preserved source statement.
 *.docx
+!docs/assignments/assignment-v1.docx
 ~$*.docx
 
 # Python

@@ -1,0 +1,2 @@
+# Preserve assignment sources and their extraction byte for byte.
+/docs/assignments/** -text

@@ -1,0 +1,67 @@
+{
+  "source": "https://disk.yandex.ru/d/ieXnPjYrSceqtQ",
+  "retrieved_date": "2026-10-22",
+  "assignment": {
+    "source_name": "Заданька v1.docx",
+    "path": "assignment-v1.docx",
+    "sha256": "c85d369f5dca306133018572a5ee8ef02013a54604cb557abb2c21651d6c2a4c",
+    "bytes": 443381,
+    "verification": "Local Downloads copy matches public Disk API SHA-256"
+  },
+  "examples": [
+    {
+      "name": "categories_loader.py",
+      "path": "/categories_loader.py",
+      "sha256": "bd02fc359c6fbd1219d59cbb5652dc62b0e592ae7c4a96773fbefc95708f6335",
+      "size": 4877,
+      "status": "preserved; SHA-256 verified"
+    },
+    {
+      "name": "clients.json",
+      "path": "/clients.json",
+      "sha256": "fb596ce0906ea36ddd6e0d0b63ba22ca37df4fbc8576b1d53fdf1492c34edb63",
+      "size": 727,
+      "status": "preserved; SHA-256 verified"
+    },
+    {
+      "name": "mongo_restaurants_dag.py",
+      "path": "/mongo_restaurants_dag.py",
+      "sha256": "ca2387e6e8240b58a0406cdf175acb804add2b0a5c9235085c5e01fbed2b8aa4",
+      "size": 2036,
+      "status": "preserved; SHA-256 verified"
+    },
+    {
+      "name": "orders.json",
+      "path": "/orders.json",
+      "sha256": "98d7a8d88564694a524e649afa8f9cb42f2abd926d5bd898dc0e22394538336e",
+      "size": 1369,
+      "status": "preserved; SHA-256 verified"
+    },
+    {
+      "name": "restaurants.json",
+      "path": "/restaurants.json",
+      "sha256": "12eb6aa1d47fc4f3ebcd117326e0abf70639b0e87af5c21f1ef9f4a6d4194307",
+      "size": 836,
+      "status": "preserved; SHA-256 verified"
+    },
+    {
+      "name": "stg_settings.py",
+      "path": "/stg_settings.py",
+      "sha256": "d02f20b6ca60a07fc197cc070a7f12746abd616ce6ab42c42237835995c78206",
+      "size": 1454,
+      "status": "preserved; SHA-256 verified"
+    },
+    {
+      "name": "inc_example.py",
+      "path": "/Examples/inc_example.py",
+      "sha256": "f542b8d7156149e6640334a504ee7f04d43f54164d35b19974e4b72f39590a29",
+      "size": 5507,
+      "status": "unavailable: HTTP 500 from both metadata URL and resources/download URL; not preserved or read"
+    }
+  ],
+  "not_downloaded": [
+    "lecture PDFs: not yet needed",
+    "grades workbook: outside task scope",
+    "task2 CSV files: separate owner"
+  ]
+}

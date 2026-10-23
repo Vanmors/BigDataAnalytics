@@ -1,5 +1,6 @@
 x-airflow-common: &airflow-common
-  image: ${AIRFLOW_IMAGE_NAME}
+  image: ${AIRFLOW_IMAGE_NAME:-bigdataanalytics-airflow:task3}
+  build: .
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -7,6 +8,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@postgres-airflow:5432/${AIRFLOW_DB_NAME}
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
     AIRFLOW__CORE__TEST_CONNECTION: Enabled
+    AIRFLOW_CONN_TASK3_MONGO: mongodb://mongo:27017/task3?replicaSet=task3
     AIRFLOW_CONN_DWH_POSTGRES: postgresql://${DWH_DB_USER}:${DWH_DB_PASSWORD}@postgres-dwh:5432/${DWH_DB_NAME}
   volumes:
     - ./dags:/opt/airflow/dags
@@ -14,6 +16,7 @@ x-airflow-common: &airflow-common
     - ./data:/opt/airflow/data
     - ./logs:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
+    - ./mongo:/opt/airflow/mongo:ro
   user: "${AIRFLOW_UID}:0"
   depends_on:
     postgres-airflow:
@@ -22,6 +25,18 @@ x-airflow-common: &airflow-common
       condition: service_healthy
 
 services:
+  mongo:
+    image: mongo:8.0.34@sha256:4a4ab5d4834207389e0d7270fac988e21ffedccecba77991a552f755df229907
+    command: [mongod, --replSet, task3, --bind_ip_all]
+    volumes:
+      - mongo-db:/data/db
+      - ./mongo:/scripts:ro
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   postgres-airflow:
     image: postgres:16
     environment:
@@ -42,7 +57,7 @@ services:
       POSTGRES_PASSWORD: ${DWH_DB_PASSWORD}
       POSTGRES_DB: ${DWH_DB_NAME}
     ports:
-      - "${DWH_HOST_PORT}:5432"
+      - "127.0.0.1:${DWH_HOST_PORT}:5432"
     volumes:
       - dwh-db:/var/lib/postgresql/data
       - ./data:/data:ro
@@ -68,7 +83,7 @@ services:
     <<: *airflow-common
     command: webserver
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 15s
@@ -88,5 +103,6 @@ services:
         condition: service_completed_successfully
 
 volumes:
+  mongo-db:
   airflow-db:
   dwh-db:
