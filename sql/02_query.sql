@@ -1,12 +1,12 @@
 SELECT
-    row_number() OVER ()                         AS id,                    -- идентификатор записи
+    row_number() OVER ()                         AS id,
     c.customer_id,
     c.customer_name,
     c.customer_address,
     c.customer_birthday,
     c.customer_email,
-    sum(o.product_price)                         AS customer_spent,        -- потратил заказчик
-    sum(o.product_price) * 0.1                   AS platform_money,        -- 10% платформе
+    sum(o.product_price)                         AS customer_spent,
+    sum(o.product_price) * 0.1                   AS platform_money,
     count(*)                                     AS count_order,
     avg(o.product_price)                         AS avg_price_order,
     percentile_cont(0.5) WITHIN GROUP (
@@ -21,8 +21,8 @@ SELECT
     count(*) FILTER (WHERE o.order_status = 'done')        AS count_order_done,
     count(*) FILTER (WHERE o.order_status <> 'done')       AS count_order_not_done,
     to_char(o.order_created_date, 'YYYY-MM')     AS report_period
-FROM source3.craft_market_orders o
-JOIN source3.craft_market_customers c USING (customer_id)
+FROM craft_market.craft_market_orders o
+JOIN craft_market.craft_market_customers c USING (customer_id)
 -- отчётный месяц: параметры подставляет DAG
 WHERE o.order_created_date >= make_date(:report_year, :report_month, 1)
   AND o.order_created_date <  make_date(:report_year, :report_month, 1) + interval '1 month'

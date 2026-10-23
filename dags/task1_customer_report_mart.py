@@ -44,19 +44,14 @@ def load_mart(logical_date=None, **_) -> None:
 with DAG(
     dag_id="task1_customer_report_mart",
     description="Task 1: build mart.craft_market_customer_report per reporting month",
-    start_date=datetime(2024, 1, 1),
+    start_date=datetime(2026, 7, 1),
+    end_date=datetime(2026, 9, 30),
     schedule="@monthly",
-    catchup=False,
+    catchup=True,
+    max_active_runs=1,
     tags=["bda", "task1"],
     template_searchpath="/opt/airflow",
 ) as dag:
-    create_source = SQLExecuteQueryOperator(
-        task_id="create_source_tables",
-        conn_id=DWH_CONN_ID,
-        sql="sql/01_ddl_craft_market.sql",
-        split_statements=True,
-    )
-
     create_mart = SQLExecuteQueryOperator(
         task_id="create_mart_table",
         conn_id=DWH_CONN_ID,
@@ -66,4 +61,4 @@ with DAG(
 
     build = PythonOperator(task_id="load_mart", python_callable=load_mart)
 
-    create_source >> create_mart >> build
+    create_mart >> build

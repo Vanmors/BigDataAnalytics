@@ -1,6 +1,3 @@
--- Задание 1. Витрина: одна строка = заказчик x отчётный месяц.
--- Колонки (кроме id) идут в том же порядке, что и в 02_query.sql.
-
 CREATE SCHEMA IF NOT EXISTS mart;
 
 CREATE TABLE IF NOT EXISTS mart.craft_market_customer_report (

@@ -7,10 +7,7 @@ plugins/
 
 # Generated test data: run `make gen`
 data/craft_market/
-
-# Task statements are kept locally only
-*.docx
-~$*.docx
+data/external_source/
 
 # Python
 __pycache__/
@@ -32,3 +29,5 @@ Thumbs.db
 
 # Misc logs
 *.log
+
+*.docx
