@@ -146,8 +146,6 @@ def main() -> None:
 
     generate_external_source(customers, products, prices)
 
-    print("\nDone. Next: `make up`, then `make seed`, then run the DAG in the Airflow UI.")
-
 
 def generate_external_source(
     customers: list[tuple],

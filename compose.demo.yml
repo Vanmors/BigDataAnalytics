@@ -34,7 +34,7 @@ services:
     volumes:
       - demo-airflow-db:/var/lib/postgresql/data
     healthcheck:
-      test: [CMD-SHELL, pg_isready -U airflow -d airflow]
+      test: [CMD-SHELL, pg_isready -h 127.0.0.1 -U airflow -d airflow]
       interval: 2s
       timeout: 3s
       retries: 60
@@ -49,7 +49,7 @@ services:
       - demo-dwh-db:/var/lib/postgresql/data
       - demo-data:/data:ro
     healthcheck:
-      test: [CMD-SHELL, pg_isready -U dwh -d dwh]
+      test: [CMD-SHELL, pg_isready -h 127.0.0.1 -U dwh -d dwh]
       interval: 2s
       timeout: 3s
       retries: 60
