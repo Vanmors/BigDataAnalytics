@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Generate deterministic teaching data for tasks 1 and 2. Standard library only - no pip install needed.
+
+    python3 data/generate_data.py
+
+Writes data/craft_market/*.csv - the three source3.craft_market_* tables (loaded by `make seed`).
+Also writes data/external_source/*.csv for the manual task2 DAG.
+The generator is deterministic (fixed random seed), so re-running it does not change the data.
+"""
 
 import csv
 import random
@@ -11,17 +19,17 @@ ROOT = Path(__file__).resolve().parent
 CRAFT_MARKET_DIR = ROOT / "craft_market"
 EXTERNAL_SOURCE_DIR = ROOT / "external_source"
 
-N_CRAFTSMANS = 5
-N_PRODUCTS = 20
-N_CUSTOMERS = 10
-N_ORDERS = 30
+N_CRAFTSMANS = 30
+N_PRODUCTS = 120
+N_CUSTOMERS = 200
+N_ORDERS = 4000
 N_ORDER_LOG = 10
 N_ACTIVITY_LOG = 10
 N_RESEARCH = 10
 N_ACTIONS = 8
 
-PERIOD_START = date(2026, 7, 1)
-PERIOD_END = date(2026, 9, 30)
+PERIOD_START = date(2024, 1, 1)
+PERIOD_END = date(2024, 6, 30)
 
 PRODUCT_TYPES = [
     "jewelry", "ceramics", "textile", "wood", "leather",
@@ -97,26 +105,26 @@ def main() -> None:
         customers,
     )
 
+    # product_id -> (name, description, type)
     products = {}
     for pid in range(1, N_PRODUCTS + 1):
         ptype = rnd.choice(PRODUCT_TYPES)
         products[pid] = (f"Handmade item #{pid}", f"Handmade {ptype} item, unique piece", ptype)
 
+    # Each craftsman makes a handful of products; the pair (craftsman, product) sets the price.
     prices: dict[tuple[int, int], int] = {}
     for craftsman_id in range(1, N_CRAFTSMANS + 1):
         for product_id in rnd.sample(range(1, N_PRODUCTS + 1), rnd.randint(4, 10)):
             prices[(craftsman_id, product_id)] = rnd.randint(500, 25000)
     catalog = list(prices)
 
+    # The order row carries the product itself, as in source3.craft_market_orders.
     orders = []
     for order_id in range(1, N_ORDERS + 1):
         craftsman_id, product_id = rnd.choice(catalog)
         created = random_date(rnd, PERIOD_START, PERIOD_END)
         status = rnd.choices(ORDER_STATUSES, weights=STATUS_WEIGHTS, k=1)[0]
-        completed = created + timedelta(days=rnd.randint(2, 45)) if status == "done" else None
-        if completed is not None and completed > PERIOD_END:
-            status, completed = "delivery", None
-        completed = completed.isoformat() if completed else ""
+        completed = (created + timedelta(days=rnd.randint(2, 45))).isoformat() if status == "done" else ""
         orders.append((
             order_id,
             product_id,
@@ -136,24 +144,7 @@ def main() -> None:
         orders,
     )
 
-    write_csv(
-        CRAFT_MARKET_DIR / "craft_market_masters_products.csv",
-        ["craftsman_id", "craftsman_name", "craftsman_address", "craftsman_birthday", "craftsman_email",
-         "product_id", "product_name", "product_description", "product_type", "product_price"],
-        [(*craftsmans[cid - 1], pid, *products[pid], price) for (cid, pid), price in sorted(prices.items())],
-    )
-    write_csv(
-        CRAFT_MARKET_DIR / "craft_market_orders_customers.csv",
-        ["order_id", "craftsman_id", "product_id", "order_created_date", "order_completion_date",
-         "order_status", "customer_id", "customer_name", "customer_address", "customer_birthday",
-         "customer_email"],
-        [(oid, cid, pid, created, completed, status, *customers[customer_id - 1])
-         for oid, pid, cid, customer_id, created, completed, status, *_ in orders],
-    )
-
     generate_external_source(customers, products, prices)
-
-    print("\nDone. Next: `make up`, then `make seed`, then run the DAG in the Airflow UI.")
 
 
 def generate_external_source(

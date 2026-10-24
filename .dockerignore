@@ -1,0 +1,17 @@
+*
+!Dockerfile
+!dags/
+!dags/*.py
+!sql/
+!sql/*.sql
+!plugins/
+!plugins/task3_mongo_cdc.py
+!mongo/
+!mongo/*.js
+!mongo/*.py
+!data/
+!data/generate_data.py
+!data/task3/
+!data/task3/*.json
+!scripts/
+!scripts/demo.py
