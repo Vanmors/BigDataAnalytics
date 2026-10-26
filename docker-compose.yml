@@ -73,10 +73,11 @@ services:
     command:
       - -c
       - |
+        set -e
         airflow db migrate
         airflow users create \
           --username "${AIRFLOW_WWW_USER}" --password "${AIRFLOW_WWW_PASSWORD}" \
-          --firstname Air --lastname Flow --role Admin --email admin@example.com || true
+          --firstname Air --lastname Flow --role Admin --email admin@example.com
     restart: on-failure
 
   airflow-webserver:
