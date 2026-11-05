@@ -1,10 +1,11 @@
 """Ownership and fail-closed checks for the portable demo; no external services."""
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 import importlib.util
 import io
 from pathlib import Path
+import sys
 import unittest
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import MagicMock, Mock, call, patch
 
 SPEC = importlib.util.spec_from_file_location('demo', Path(__file__).resolve().parents[1] / 'scripts/demo.py')
 demo = importlib.util.module_from_spec(SPEC)
@@ -73,6 +74,35 @@ class DemoTests(unittest.TestCase):
         demo.check_source(state, db, cdc)
         cdc.identity.assert_called_once_with(db)
         cdc.validate_binding.assert_called_once_with(state, cdc.identity.return_value)
+
+    def test_fixture_seed_runs_only_before_first_baseline(self):
+        root = Path(__file__).resolve().parents[1]
+        for status in ('uninitialized', 'active'):
+            pg, client, cdc = MagicMock(), MagicMock(), MagicMock()
+            pg.closed = False
+            pg.cursor.return_value.__enter__.return_value.fetchone.return_value = (1,)
+            client.admin.command.return_value = {'fsyncLock': False}
+            client.__getitem__.return_value.client = client
+            cdc.mongo_client.return_value.__enter__.return_value = client
+            cdc.state_row.return_value = {'status': status}
+            hook = Mock()
+            hook.get_conn.return_value = pg
+            modules = {
+                'airflow.hooks.base': Mock(BaseHook=Mock()),
+                'airflow.providers.postgres.hooks.postgres': Mock(PostgresHook=Mock(return_value=hook)),
+                'task3_mongo_cdc': cdc,
+            }
+            with self.subTest(status=status), patch.dict(sys.modules, modules), patch.object(demo, 'ROOT', root):
+                with patch.object(demo.runpy, 'run_path') as seed, patch.object(demo, 'publish_baseline') as publish:
+                    with patch.object(demo, 'execute_dag', side_effect=StopIteration), redirect_stdout(io.StringIO()):
+                        with self.assertRaises(StopIteration):
+                            demo.demonstrate()
+                    if status == 'uninitialized':
+                        seed.assert_called_once_with(str(root / 'mongo/task3-seed.py'), run_name='__main__')
+                        publish.assert_called_once()
+                    else:
+                        seed.assert_not_called()
+                        publish.assert_not_called()
 
     def test_contended_demo_lock_never_enters_or_unlocks(self):
         pg = MagicMock()

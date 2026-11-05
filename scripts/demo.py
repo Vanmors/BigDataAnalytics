@@ -218,8 +218,8 @@ def demonstrate():
                 counts.append(cur.fetchone()[0])
         if not any(counts):
             hook.run((ROOT / 'sql/04_seed_craft_market.sql').read_text(), autocommit=False)
-        runpy.run_path(str(ROOT / 'mongo/task3-seed.py'), run_name='__main__')
         if state['status'] == 'uninitialized':
+            runpy.run_path(str(ROOT / 'mongo/task3-seed.py'), run_name='__main__')
             publish_baseline(client.admin, lambda: cdc.airflow_run('baseline', pause_held=True))
             print('PASS: первый baseline опубликован; собственная блокировка MongoDB снята.', flush=True)
         else:
