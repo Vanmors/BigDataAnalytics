@@ -1,6 +1,7 @@
 """Task 3: bounded raw-BSON capture for a supervised, local teaching replica set."""
 import argparse
 import json
+import logging
 import os
 import time
 from contextlib import closing, contextmanager
@@ -29,6 +30,10 @@ READ_SECONDS = 20
 BASELINE_SECONDS = 90
 # MongoDB's explicit history/image-loss errors; unrelated operation errors never reset state.
 LOSS_CODES = {136, 286}
+PROGRESS_EVERY = 50
+
+
+log = logging.getLogger(__name__)
 
 
 class ContractError(RuntimeError):
@@ -279,6 +284,8 @@ def baseline(pg, db, state, pause_held, pg_factory):
                                 VALUES (%s,'baseline',%s,%s,%s,%s::jsonb,%s,%s)''',
                                         (epoch, collection, key, raw, *projected))
                             latest(cur, collection, key, epoch, doc, projected)
+                            if count % PROGRESS_EVERY == 0:
+                                log.info('Baseline: %d documents written (committed at the end)', count)
                 if stream.try_next() is not None or not stream.alive:
                     raise ContractError('Stream changed or closed under pause')
                 raw_bytes(stream.resume_token)
@@ -347,6 +354,8 @@ def consume(pg, db, state):
                     n, errors = apply_batch(pg, db, state, batch, next_token, empty=True)
                     inserted += n
                     unavailable += errors
+                    if batch:
+                        log.info('Committed %d events (%d read)', inserted, read)
                     batch = []
                     outcome = 'empty_at_read'
                     token = next_token
@@ -357,6 +366,7 @@ def consume(pg, db, state):
                     n, errors = apply_batch(pg, db, state, batch, token)
                     inserted += n
                     unavailable += errors
+                    log.info('Committed %d events (%d read)', inserted, read)
                     batch = []
                     buffered = 0
                 batch.append(prepared)
@@ -367,12 +377,14 @@ def consume(pg, db, state):
                     n, errors = apply_batch(pg, db, state, batch, token)
                     inserted += n
                     unavailable += errors
+                    log.info('Committed %d events (%d read)', inserted, read)
                     batch = []
                     buffered = 0
             if batch:
                 n, errors = apply_batch(pg, db, state, batch, token)
                 inserted += n
                 unavailable += errors
+                log.info('Committed %d events (%d read)', inserted, read)
     except (OperationFailure, ContinuityError) as exc:
         if not source_loss(exc):
             raise
@@ -409,17 +421,23 @@ def airflow_run(command='consume', pause_held=False):
     from airflow.hooks.base import BaseHook
     from airflow.providers.postgres.hooks.postgres import PostgresHook
     mongo = BaseHook.get_connection('task3_mongo')
+    dwh = BaseHook.get_connection('dwh_postgres')
+    source = f'mongodb://{mongo.host}:{mongo.port}/{mongo.schema} collections {", ".join(COLLECTIONS)} (change stream)'
+    target = f'postgres://{dwh.host}:{dwh.port}/{dwh.schema} task3.mongo_events, task3.mongo_latest, task3.mongo_state'
+    started = time.monotonic()
+    log.info('%s started: %s -> %s', command, source, target)
     factory = PostgresHook(postgres_conn_id='dwh_postgres').get_conn
     pg = factory()
     try:
         with mongo_client(mongo.get_uri()) as client:
             result = run(pg, client, mongo.schema, command, pause_held=pause_held, pg_factory=factory)
-        print(json.dumps(result, sort_keys=True))
+        log.info('Result: %s', json.dumps(result, sort_keys=True))
         return result
     except (PyMongoError, psycopg2.Error) as exc:
         raise ContractError('Capture failed: ' + type(exc).__name__ + '; code=' + str(getattr(exc, 'code', None) or getattr(exc, 'pgcode', None))) from None
     finally:
         pg.close()
+        log.info('%s finished in %.1f s: %s -> %s', command, time.monotonic() - started, source, target)
 
 
 def main():
@@ -427,6 +445,7 @@ def main():
     parser.add_argument('command', choices=['baseline', 'consume'])
     parser.add_argument('--pause-held', action='store_true', help='Operator asserts one continuously held fsync lock since acquisition')
     args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     if 'TASK3_PG_DSN' not in os.environ:
         airflow_run(args.command, args.pause_held)
         return
@@ -436,7 +455,7 @@ def main():
         with mongo_client(os.environ['TASK3_MONGO_URI']) as client:
             result = run(pg, client, os.environ.get('TASK3_MONGO_DATABASE', 'task3'), args.command,
                          pause_held=args.pause_held, pg_factory=factory)
-        print(json.dumps(result, sort_keys=True))
+        log.info('Result: %s', json.dumps(result, sort_keys=True))
     except (PyMongoError, psycopg2.Error) as exc:
         raise ContractError('Capture failed: ' + type(exc).__name__ + '; code=' + str(getattr(exc, 'code', None) or getattr(exc, 'pgcode', None))) from None
     finally:

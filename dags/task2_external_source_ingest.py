@@ -1,5 +1,7 @@
 import csv
 import io
+import logging
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -11,6 +13,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 DWH_CONN_ID = "dwh_postgres"
 DATA_DIR = Path("/opt/airflow/data/external_source")
 SCHEMA = "external_source"
+PROGRESS_EVERY = 50
 
 TABLES = {
     "user_order_log": ("user_order_log.csv", ["date_time", "customer_id", "quantity", "payment_amount"]),
@@ -18,8 +21,17 @@ TABLES = {
     "customer_research": ("customer_research.csv", ["date_id", "geo_id", "sales_qty", "sales_amt"]),
 }
 
+log = logging.getLogger(__name__)
+
 
 def load_csv(table: str, file_name: str, columns: list[str]) -> None:
+    started = time.monotonic()
+    hook = PostgresHook(postgres_conn_id=DWH_CONN_ID)
+    conn_info = hook.get_connection(DWH_CONN_ID)
+    source = f"file {DATA_DIR / file_name}"
+    destination = f"postgres://{conn_info.host}:{conn_info.port}/{conn_info.schema} {SCHEMA}.{table}"
+    log.info("Load started: %s -> %s, columns %s", source, destination, columns)
+
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     with (DATA_DIR / file_name).open(newline="", encoding="utf-8") as f:
@@ -31,10 +43,11 @@ def load_csv(table: str, file_name: str, columns: list[str]) -> None:
         for row in reader:
             writer.writerow(row[c] for c in columns)
             file_rows += 1
+            if file_rows % PROGRESS_EVERY == 0:
+                log.info("%s: %d rows read", file_name, file_rows)
     buffer.seek(0)
 
     target = f"{SCHEMA}.{table}"
-    hook = PostgresHook(postgres_conn_id=DWH_CONN_ID)
     conn = hook.get_conn()
     try:
         with conn, conn.cursor() as cur:
@@ -47,7 +60,7 @@ def load_csv(table: str, file_name: str, columns: list[str]) -> None:
     finally:
         conn.close()
 
-    print(f"{target}: {table_rows} rows loaded from {file_name}")
+    log.info("Load finished in %.1f s: %s -> %s, %d rows", time.monotonic() - started, source, destination, table_rows)
 
 
 with DAG(
@@ -56,7 +69,6 @@ with DAG(
     start_date=datetime(2024, 1, 1),
     schedule=None,
     catchup=False,
-    tags=["bda", "task2"],
     template_searchpath="/opt/airflow",
 ) as dag:
     create_tables = SQLExecuteQueryOperator(

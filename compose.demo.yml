@@ -45,6 +45,8 @@ services:
       POSTGRES_USER: dwh
       POSTGRES_PASSWORD: dwh
       POSTGRES_DB: dwh
+    ports:
+      - "127.0.0.1:5433:5432"
     volumes:
       - demo-dwh-db:/var/lib/postgresql/data
       - demo-data:/data:ro

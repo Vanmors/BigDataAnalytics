@@ -1,3 +1,5 @@
+import logging
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -17,8 +19,11 @@ MART_COLUMNS = (
     "count_order_delivery, count_order_done, count_order_not_done, report_period"
 )
 
+log = logging.getLogger(__name__)
+
 
 def load_mart(logical_date=None, **_) -> None:
+    started = time.monotonic()
     year, month = logical_date.year, logical_date.month
     period = f"{year}-{month:02d}"
 
@@ -27,6 +32,17 @@ def load_mart(logical_date=None, **_) -> None:
     query = query.strip().rstrip(";")
 
     hook = PostgresHook(postgres_conn_id=DWH_CONN_ID)
+    conn = hook.get_connection(DWH_CONN_ID)
+    source = (f"postgres://{conn.host}:{conn.port}/{conn.schema} "
+              f"source3.craft_market_orders + source3.craft_market_customers, orders created in {period}")
+    target = f"postgres://{conn.host}:{conn.port}/{conn.schema} {MART_TABLE}, report_period = {period}"
+    source_orders = hook.get_first(
+        "SELECT count(*) FROM source3.craft_market_orders "
+        "WHERE to_char(order_created_date, 'YYYY-MM') = %s",
+        parameters=(period,),
+    )[0]
+    log.info("Load started: %s -> %s, %d source orders", source, target, source_orders)
+    # The mart is built by one INSERT ... SELECT, so only the final row count is known.
     hook.run(
         [
             f"DELETE FROM {MART_TABLE} WHERE report_period = '{period}'",
@@ -38,7 +54,7 @@ def load_mart(logical_date=None, **_) -> None:
         f"SELECT count(*) FROM {MART_TABLE} WHERE report_period = %s",
         parameters=(period,),
     )[0]
-    print(f"{MART_TABLE}: {rows} rows for {period}")
+    log.info("Load finished in %.1f s: %s -> %s, %d rows", time.monotonic() - started, source, target, rows)
 
 
 with DAG(
