@@ -1,0 +1,3 @@
+dag_id,expected_schedule,file_name
+sn_dwh_load,0 3 * * *,sn_dwh_load.py
+sn_sys_marts,*/30 * * * *,sn_sys_marts.py

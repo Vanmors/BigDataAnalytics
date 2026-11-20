@@ -1,0 +1,14 @@
+# Local environment: copy .env.example to .env
+.env
+
+# Airflow runtime folders (created by `make up`)
+logs/
+plugins/*
+!plugins/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Office lock files
+~$*
