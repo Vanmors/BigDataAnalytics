@@ -1,8 +1,10 @@
 """Run the dedicated, persistent teaching demo; never reset existing data."""
 import argparse
+import csv
 from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal
+import importlib.util
 import json
 from pathlib import Path
 import runpy
@@ -18,6 +20,7 @@ DAGS = {
 }
 SOURCE_TABLES = ('craft_market_craftsmans', 'craft_market_customers', 'craft_market_orders')
 EXTERNAL_TABLES = ('user_order_log', 'user_activity_log', 'customer_research')
+EXTERNAL_DIR = ROOT / 'data/external_source'
 
 
 def require(condition, message):
@@ -45,8 +48,19 @@ def initialize():
                 command('airflow', 'users', 'reset-password', '--username', 'airflow', '--password', 'airflow')
             if 'Admin' not in {role.name for role in user.roles}:
                 command('airflow', 'users', 'add-role', '--username', 'airflow', '--role', 'Admin')
-    runpy.run_path(str(ROOT / 'data/generate_data.py'), run_name='__main__')
+    generate_data()
     print('PASS: Airflow и учебные CSV готовы.', flush=True)
+
+
+def generate_data():
+    # The generator lives in the demo-data volume and may be stale, so the guard stays here.
+    # external_source is bind-mounted from the host: never overwrite CSVs edited there.
+    spec = importlib.util.spec_from_file_location('generate_data', ROOT / 'data/generate_data.py')
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    if all((EXTERNAL_DIR / f'{table}.csv').exists() for table in EXTERNAL_TABLES):
+        generator.generate_external_source = lambda *args: print('external_source/*.csv kept as is', flush=True)
+    generator.main()
 
 
 @contextmanager
@@ -111,11 +125,18 @@ def verify_task1(hook):
     print('PASS: задание 1 — 195 заказчиков, 704 заказа; суммы 8802285.00 и 880228.50.', flush=True)
 
 
+def csv_row_count(table):
+    with (EXTERNAL_DIR / f'{table}.csv').open(newline='', encoding='utf-8') as stream:
+        return sum(1 for _ in csv.DictReader(stream))
+
+
 def external_snapshot(hook):
     result = {}
     for table in EXTERNAL_TABLES:
         rows = hook.get_records(f'SELECT to_jsonb(t) FROM external_source.{table} t ORDER BY to_jsonb(t)::text')
-        require(len(rows) == 10, f'Задание 2: external_source.{table} содержит {len(rows)} строк вместо 10.')
+        expected = csv_row_count(table)
+        require(rows and len(rows) == expected,
+                f'Задание 2: external_source.{table} содержит {len(rows)} строк, в CSV {expected}.')
         result[table] = rows
     return result
 
@@ -230,9 +251,12 @@ def demonstrate():
         first = external_snapshot(hook)
         execute_dag('task2_external_source_ingest')
         require(external_snapshot(hook) == first, 'Повтор задания 2 изменил содержимое таблиц.')
-        print('PASS: задание 2 — по 10 строк в трёх таблицах; повтор без дублей.', flush=True)
+        counts = ', '.join(f'{table} {len(rows)}' for table, rows in first.items())
+        print(f'PASS: задание 2 — строки CSV загружены ({counts}); повтор без дублей.', flush=True)
         verify_sql_audit(pg)
         verify_mongo(hook, db, cdc)
+    # Unpaused only after the checks so a scheduled reload cannot race the snapshot comparison.
+    command('airflow', 'dags', 'unpause', 'task2_external_source_ingest')
     print('\nPASS: все три задания проверены.\nAirflow: http://127.0.0.1:8080 (airflow / airflow)', flush=True)
     for dag in DAGS:
         print(f'http://127.0.0.1:8080/dags/{dag}/grid', flush=True)

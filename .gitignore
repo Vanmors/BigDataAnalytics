@@ -1,37 +1,7 @@
-# Local environment: copy .env.example to .env
-.env
-
-# Airflow runtime folders (created by `make up`)
-logs/
-plugins/*
-!plugins/task3_mongo_cdc.py
-
-# Generated test data: run `make gen`
-data/craft_market/
-data/external_source/
-
-# Task documents are ignored except for the preserved source statement.
-*.docx
-!docs/assignments/assignment-v1.docx
-~$*.docx
-
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# IDE
+# Per-lab rules live in lab1/.gitignore and lab2/.gitignore.
 .idea/
 .vscode/
-*.iml
-
-# OS
+.venv/
+venv/
 .DS_Store
-Thumbs.db
-
-# Misc logs
 *.log

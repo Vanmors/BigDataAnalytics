@@ -54,7 +54,7 @@ def load_mart(logical_date=None, **_) -> None:
         f"SELECT count(*) FROM {MART_TABLE} WHERE report_period = %s",
         parameters=(period,),
     )[0]
-    log.info("Load finished in %.1f s: %s -> %s, %d rows", time.monotonic() - started, source, target, rows)
+    log.info("Load finished in %.0f ms: %s -> %s, %d rows", (time.monotonic() - started) * 1000, source, target, rows)
 
 
 with DAG(

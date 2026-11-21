@@ -11,7 +11,6 @@ x-airflow-common: &airflow-common
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
     AIRFLOW__CORE__TEST_CONNECTION: Enabled
     AIRFLOW_CONN_VERTICA_DWH: vertica://dbadmin:${VERTICA_PASSWORD}@vertica:5433/${VERTICA_DB_NAME}
-    # Source of the system marts.
     AIRFLOW_CONN_AIRFLOW_METADATA: postgresql://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@postgres-airflow:5432/${AIRFLOW_DB_NAME}
   volumes:
     - ./dags:/opt/airflow/dags

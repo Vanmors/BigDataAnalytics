@@ -17,6 +17,7 @@ import_errors AS (
 last_runs AS (
     SELECT dag_id, coalesce(start_date, queued_at) AS run_at, state
     FROM stg_airflow.dag_run
+    WHERE NOT (dag_id = '{{ dag.dag_id }}' AND run_id = '{{ run_id }}')
     LIMIT 1 OVER (PARTITION BY dag_id ORDER BY coalesce(start_date, queued_at) DESC NULLS LAST)
 ),
 dags AS (

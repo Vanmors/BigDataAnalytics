@@ -437,7 +437,7 @@ def airflow_run(command='consume', pause_held=False):
         raise ContractError('Capture failed: ' + type(exc).__name__ + '; code=' + str(getattr(exc, 'code', None) or getattr(exc, 'pgcode', None))) from None
     finally:
         pg.close()
-        log.info('%s finished in %.1f s: %s -> %s', command, time.monotonic() - started, source, target)
+        log.info('%s finished in %.0f ms: %s -> %s', command, (time.monotonic() - started) * 1000, source, target)
 
 
 def main():

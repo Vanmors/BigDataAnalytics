@@ -60,15 +60,17 @@ def load_csv(table: str, file_name: str, columns: list[str]) -> None:
     finally:
         conn.close()
 
-    log.info("Load finished in %.1f s: %s -> %s, %d rows", time.monotonic() - started, source, destination, table_rows)
+    log.info("Load finished in %.0f ms: %s -> %s, %d rows",
+             (time.monotonic() - started) * 1000, source, destination, table_rows)
 
 
 with DAG(
     dag_id="task2_external_source_ingest",
     description="Task 2: load external CSV files into the external_source schema",
     start_date=datetime(2024, 1, 1),
-    schedule=None,
+    schedule='* * * * *',
     catchup=False,
+    max_active_runs=1,
     template_searchpath="/opt/airflow",
 ) as dag:
     create_tables = SQLExecuteQueryOperator(

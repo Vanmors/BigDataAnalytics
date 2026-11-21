@@ -15,6 +15,7 @@ instances AS (
     FROM stg_airflow.task_instance ti
     JOIN stg_airflow.dag_run dr ON dr.dag_id = ti.dag_id AND dr.run_id = ti.run_id
     CROSS JOIN snapshot s
+    WHERE NOT (ti.dag_id = '{{ dag.dag_id }}' AND ti.run_id = '{{ run_id }}')
 ),
 last_states AS (
     SELECT dag_id, task_id, state, run_at

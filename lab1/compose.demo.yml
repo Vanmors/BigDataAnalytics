@@ -17,6 +17,7 @@ x-airflow: &airflow
     AIRFLOW_CONN_DWH_POSTGRES: postgresql://dwh:dwh@postgres-dwh:5432/dwh
   volumes:
     - demo-data:/opt/airflow/data
+    - ./data/external_source:/opt/airflow/data/external_source
     - demo-logs:/opt/airflow/logs
   depends_on:
     postgres-airflow:
