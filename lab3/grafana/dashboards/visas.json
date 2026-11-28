@@ -1,0 +1,348 @@
+{
+  "uid": "lab3-visas",
+  "title": "Визы",
+  "description": "Ближайшие вылеты на горизонте 30 дней",
+  "tags": [
+    "lab3"
+  ],
+  "schemaVersion": 41,
+  "editable": false,
+  "timezone": "utc",
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-1y",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": true
+  },
+  "refresh": "",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Клиентов с истёкшими визами",
+      "description": "Уникальные клиенты с визой, истекающей раньше даты вылета.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(DISTINCT customer_id) AS value FROM report.upcoming_visa WHERE problem = 'Истекла'"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Туров с проблемой",
+      "description": "Тур отмечен, если хотя бы у одного клиента возникла визовая проблема.",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(DISTINCT tour_id) AS value FROM report.upcoming_visa WHERE problem IS NOT NULL"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Туров в ближайшие 30 дней",
+      "description": "Активные брони, сгруппированные по турам.",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(DISTINCT tour_id) AS value FROM report.upcoming_visa"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Кого проверить перед вылетом",
+      "description": "Клиенты по ближайшим вылетам. Повторные бронирования одного вылета объединены.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 16,
+        "h": 10
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT full_name AS \"Клиент\", destination AS \"Направление\", to_char(flight_date, 'DD.MM.YYYY') AS \"Вылет\",\n                 to_char(expires_on, 'DD.MM.YYYY') AS \"Виза до\", problem AS \"Причина\"\n          FROM report.upcoming_visa WHERE problem IS NOT NULL\n          GROUP BY customer_id, full_name, destination, flight_date, expires_on, problem\n          ORDER BY flight_date, full_name"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "custom": {
+            "minWidth": 88,
+            "wrapText": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Вылет|Виза до)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 98
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md"
+      }
+    },
+    {
+      "id": 5,
+      "type": "piechart",
+      "title": "Доля туров с проблемой",
+      "description": "Доля среди туров с активными бронями на горизонте 30 дней.",
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 10
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) FILTER (WHERE has_problem) AS \"С проблемой\",\n                 count(*) FILTER (WHERE NOT has_problem) AS \"Без проблем\"\n          FROM (SELECT bool_or(problem IS NOT NULL) AS has_problem FROM report.upcoming_visa GROUP BY tour_id) totals"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "С проблемой"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Без проблем"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "pieType": "donut",
+        "displayLabels": [
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "Бронирования",
+      "type": "link",
+      "icon": "fa fa-ticket",
+      "url": "/d/lab3-bookings",
+      "targetBlank": false,
+      "includeVars": false,
+      "keepTime": false
+    },
+    {
+      "title": "Отели",
+      "type": "link",
+      "icon": "fa fa-building",
+      "url": "/d/lab3-hotels",
+      "targetBlank": false,
+      "includeVars": false,
+      "keepTime": false
+    },
+    {
+      "title": "Airflow · история загрузки",
+      "type": "link",
+      "icon": "external link",
+      "url": "http://127.0.0.1:8082/dags/lab3_anchor_load/grid",
+      "targetBlank": true
+    }
+  ]
+}

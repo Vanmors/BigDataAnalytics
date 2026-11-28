@@ -1,0 +1,368 @@
+{
+  "uid": "lab3-bookings",
+  "title": "Бронирования",
+  "description": "Якорная модель · операции, цены и направления",
+  "tags": [
+    "lab3"
+  ],
+  "schemaVersion": 41,
+  "editable": false,
+  "timezone": "utc",
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-1y",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": true
+  },
+  "refresh": "",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Всего бронирований",
+      "description": "Уникальные брони по первому дню их появления.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS value FROM report.booking_cost"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Средняя стоимость тура на дату брони",
+      "description": "Перелёт и ночи в отеле по тарифам, действовавшим в день бронирования.",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT round(avg(package_cost)) AS value FROM report.booking_cost"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currency:financial:₽:suffix",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Данные на",
+      "description": "Последний успешно загруженный день. Все дашборды используют одну дату среза.",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (extract(epoch FROM as_of::timestamptz) * 1000)::bigint AS value FROM report.clock"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "time:DD.MM.YYYY",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Новые бронирования по дням",
+      "description": "Учитывается первое появление брони, переносы её повторно не увеличивают.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 15,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT day::timestamptz AS time, count(b.booking_id) AS \"Брони\"\n          FROM report.clock CROSS JOIN LATERAL generate_series(as_of - 365, as_of, interval '1 day') day\n          LEFT JOIN report.booking_cost b ON b.created_on = day::date\n          GROUP BY time ORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 3,
+            "fillOpacity": 14,
+            "showPoints": "auto",
+            "lineInterpolation": "linear",
+            "axisSoftMin": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Топ-5 направлений",
+      "description": "Направление на дату создания брони.",
+      "gridPos": {
+        "x": 15,
+        "y": 4,
+        "w": 9,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT destination AS \"Направление\", count(*) AS \"Брони\" FROM report.booking_cost\n        GROUP BY destination ORDER BY count(*) DESC, destination LIMIT 5"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "always",
+        "barRadius": 0.12,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Как менялась стоимость тура № 1",
+      "description": "Ступень начинается в день вступления новой цены или маршрута.",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT valid_from::timestamptz AS time, package_cost AS \"Стоимость\"\n          FROM report.tour_cost_history(1) ORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyRUB",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 3,
+            "fillOpacity": 14,
+            "showPoints": "auto",
+            "lineInterpolation": "stepAfter",
+            "axisSoftMin": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "Отели",
+      "type": "link",
+      "icon": "fa fa-building",
+      "url": "/d/lab3-hotels",
+      "targetBlank": false,
+      "includeVars": false,
+      "keepTime": false
+    },
+    {
+      "title": "Визы",
+      "type": "link",
+      "icon": "fa fa-plane",
+      "url": "/d/lab3-visas",
+      "targetBlank": false,
+      "includeVars": false,
+      "keepTime": false
+    },
+    {
+      "title": "Airflow · история загрузки",
+      "type": "link",
+      "icon": "external link",
+      "url": "http://127.0.0.1:8082/dags/lab3_anchor_load/grid",
+      "targetBlank": true
+    }
+  ]
+}

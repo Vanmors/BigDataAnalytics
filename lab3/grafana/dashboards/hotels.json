@@ -1,0 +1,235 @@
+{
+  "uid": "lab3-hotels",
+  "title": "Отели",
+  "description": "Плановые ночи по действующим маршрутам",
+  "tags": [
+    "lab3"
+  ],
+  "schemaVersion": 41,
+  "editable": false,
+  "timezone": "utc",
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-1y",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": true
+  },
+  "refresh": "",
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Ночи по месяцам · топ-5 отелей",
+      "description": "12 календарных месяцев на дату среза. Цвет и число показывают ночи. Тире означает ноль.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH months AS (\n              SELECT month::date AS month\n              FROM report.clock CROSS JOIN LATERAL generate_series(\n                  date_trunc('month', as_of) - interval '11 months', date_trunc('month', as_of), interval '1 month'\n              ) month\n          ), top_hotels AS (\n              SELECT hotel_id, hotel_name, sum(nights) AS nights\n              FROM report.hotel_month JOIN months USING (month)\n              GROUP BY hotel_id, hotel_name ORDER BY nights DESC, hotel_id LIMIT 5\n          )\n          SELECT h.hotel_name AS \"Отель\", to_char(m.month, 'MM.YY') AS \"Месяц\",\n                 coalesce(o.nights, 0) AS \"Ночи\"\n          FROM top_hotels h CROSS JOIN months m\n          LEFT JOIN report.hotel_month o ON o.hotel_id = h.hotel_id AND o.month = m.month\n          ORDER BY h.nights DESC, h.hotel_id, m.month"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "color-background"
+            },
+            "minWidth": 54
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "#24405c",
+                "value": 1
+              },
+              {
+                "color": "#2a6478",
+                "value": 4
+              },
+              {
+                "color": "#3b8d86",
+                "value": 7
+              },
+              {
+                "color": "#63b389",
+                "value": 10
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "—",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Отель\\Месяц"
+            },
+            "properties": [
+              {
+                "id": "custom.align",
+                "value": "left"
+              },
+              {
+                "id": "custom.width",
+                "value": 115
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Отель"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^[0-9]{2}\\.[0-9]{2}$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 62
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md"
+      },
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "Месяц",
+            "rowField": "Отель",
+            "valueField": "Ночи"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "barchart",
+      "title": "Средняя длительность проживания",
+      "description": "Длительность одного проживания в ночах. Тур учитывается один раз.",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "lab3-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "lab3-postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT hotel_name AS \"Отель\", round(avg(nights), 1) AS \"Ночи\"\n        FROM report.hotel_stay GROUP BY hotel_id, hotel_name\n        ORDER BY avg(nights) DESC, hotel_name"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "teal"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "always",
+        "barRadius": 0.12,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "Бронирования",
+      "type": "link",
+      "icon": "fa fa-ticket",
+      "url": "/d/lab3-bookings",
+      "targetBlank": false,
+      "includeVars": false,
+      "keepTime": false
+    },
+    {
+      "title": "Визы",
+      "type": "link",
+      "icon": "fa fa-plane",
+      "url": "/d/lab3-visas",
+      "targetBlank": false,
+      "includeVars": false,
+      "keepTime": false
+    },
+    {
+      "title": "Airflow · история загрузки",
+      "type": "link",
+      "icon": "external link",
+      "url": "http://127.0.0.1:8082/dags/lab3_anchor_load/grid",
+      "targetBlank": true
+    }
+  ]
+}

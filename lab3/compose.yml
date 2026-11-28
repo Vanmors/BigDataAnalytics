@@ -1,0 +1,106 @@
+name: bigdataanalytics-anchor-lab
+
+x-airflow: &airflow
+  image: apache/airflow:2.10.5-python3.12
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__PARALLELISM: "2"
+    AIRFLOW__SCHEDULER__PARSING_PROCESSES: "1"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://admin:admin@postgres/airflow
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+    AIRFLOW__WEBSERVER__SECRET_KEY: lab3-local-webserver
+    AIRFLOW__WEBSERVER__WORKERS: "2"
+    AIRFLOW_CONN_LAB3_WAREHOUSE: postgresql://admin:admin@postgres/lab3
+  volumes:
+    - ./dags:/opt/airflow/dags:ro
+    - airflow-logs:/opt/airflow/logs
+  depends_on:
+    airflow-init:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: lab3
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          PGPASSWORD=admin psql -X -h 127.0.0.1 -U admin -d lab3 -tAc
+          "SELECT has_table_privilege('monitoring', 'report.upcoming_visa', 'SELECT')::int"
+          | grep -qx 1
+      interval: 2s
+      timeout: 3s
+      retries: 40
+
+  airflow-init:
+    <<: *airflow
+    command:
+      - bash
+      - -ec
+      - |
+        airflow db migrate
+        users=$(airflow users list --output json)
+        python -c 'import json,sys; sys.exit(not any(u["username"] == "admin" for u in json.load(sys.stdin)))' <<< "$$users" ||
+          airflow users create --username admin --password admin --firstname Lab --lastname Admin --role Admin --email lab3@example.test
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow-web:
+    <<: *airflow
+    command: webserver
+    ports:
+      - "127.0.0.1:8082:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 4s
+      timeout: 4s
+      retries: 40
+
+  airflow-scheduler:
+    <<: *airflow
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+
+  grafana:
+    image: grafana/grafana:12.3.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/bookings.json
+    ports:
+      - "127.0.0.1:3003:3000"
+    volumes:
+      - grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3000/api/health"]
+      interval: 4s
+      timeout: 4s
+      retries: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres:
+  airflow-logs:
+  grafana:

@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: Anchor warehouse
+    uid: lab3-postgres
+    type: postgres
+    url: postgres:5432
+    user: monitoring
+    isDefault: true
+    editable: false
+    secureJsonData:
+      password: monitoring
+    jsonData:
+      database: lab3
+      sslmode: disable
+      postgresVersion: 1600
